@@ -532,3 +532,26 @@ procdump(void)
     cprintf("\n");
   }
 }
+
+// Create a new thread
+int
+thread_create(void *stack)
+{
+  return -1;
+}
+
+
+// Get the current thread's ID
+int
+thread_id()
+{
+  return -1;
+}
+
+// Make the parent process wait for the thread 
+// with the given ID to finish
+int
+thread_join(int id)
+{
+  return -1;
+}
