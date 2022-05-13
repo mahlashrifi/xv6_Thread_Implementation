@@ -91,7 +91,7 @@ sys_uptime(void)
 }
 
 int
-sys_threadCreate(void)
+sys_thread_create(void)
 {
   int stack;
   if(argint(0, &stack) < 0)
@@ -100,13 +100,13 @@ sys_threadCreate(void)
 }
 
 int
-sys_threadID(void)
+sys_thread_id(void)
 { 
   return thread_id();
 }
 
 int
-sys_threadJoin(void)
+sys_thread_join(void)
 {
   int id;
   if(argint(0, &id) < 0)
