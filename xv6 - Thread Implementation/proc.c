@@ -14,6 +14,8 @@ struct {
 
 static struct proc *initproc;
 
+struct spinlock threadLock;
+
 int nextpid = 1;
 extern void forkret(void);
 extern void trapret(void);
@@ -24,6 +26,7 @@ void
 pinit(void)
 {
   initlock(&ptable.lock, "ptable");
+  initlock(&threadLock, "thread ");
 }
 
 // Must be called with interrupts disabled
@@ -162,15 +165,57 @@ growproc(int n)
   uint sz;
   struct proc *curproc = myproc();
 
+  acquire(&threadLock);
+  
   sz = curproc->sz;
   if(n > 0){
-    if((sz = allocuvm(curproc->pgdir, sz, sz + n)) == 0)
+    if((sz = allocuvm(curproc->pgdir, sz, sz + n)) == 0) {
+      release(&threadLock);
       return -1;
+    }
   } else if(n < 0){
-    if((sz = deallocuvm(curproc->pgdir, sz, sz + n)) == 0)
+    if((sz = deallocuvm(curproc->pgdir, sz, sz + n)) == 0) {
+      release(&threadLock);
       return -1;
+    } 
   }
-  curproc->sz = sz;
+  curproc->sz = sz;  
+
+  acquire(&ptable.lock);
+
+  if (curproc->threads == -1) { // It's a child thread
+    // Update parent's memory size
+    curproc->parent->sz = curproc->sz;
+
+    // Count the number of processes we should update their sz 
+    // (have updated curproc and it's parent already)
+    int toBeUpdated = curproc->parent->threads - 2; 
+
+    struct proc *p;
+    if (toBeUpdated > 0) // curproc has siblings which should be updated
+      for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+        if(p != curproc && p->parent == curproc->parent && p->threads == -1) {
+          p->sz = curproc->sz;
+          toBeUpdated--;
+        }
+  }
+  else { // It's a parent process
+    // Count the number of processes we should update their sz 
+    // (have updated curproc already)
+    int toBeUpdated = curproc->threads - 1; 
+
+    struct proc *p;
+    if (toBeUpdated > 0) // curproc has children which should be updated
+      for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+        if(p != curproc && p->parent == curproc->parent && p->threads == -1) {
+          p->sz = curproc->sz;
+          toBeUpdated--;
+        }
+  }
+
+  release(&ptable.lock);
+  release(&threadLock);
+
   switchuvm(curproc);
   return 0;
 }
@@ -306,7 +351,7 @@ wait(void)
       release(&ptable.lock);
       return -1;
     }
-
+ 
     // Wait for children to exit.  (See wakeup1 call in proc_exit.)
     sleep(curproc, &ptable.lock);  //DOC: wait-sleep
   }
