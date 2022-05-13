@@ -49,6 +49,8 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
+  int stackTop;                // Top of the thread's stack
+  int threads;                 // Number of threads this process owns. -1 for threads.
 };
 
 // Process memory is laid out contiguously, low addresses first:

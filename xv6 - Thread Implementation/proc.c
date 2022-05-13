@@ -88,6 +88,7 @@ allocproc(void)
 found:
   p->state = EMBRYO;
   p->pid = nextpid++;
+  p->threads = -1;
 
   release(&ptable.lock);
 
@@ -537,7 +538,59 @@ procdump(void)
 int
 thread_create(void *stack)
 {
-  return -1;
+  int i, tid;
+  struct proc *np;
+  struct proc *curproc = myproc();
+   
+  // Allocate process. 
+  if((np = allocproc()) == 0){
+    return -1;
+  }
+
+  // Add one to the number of threads the parent process owns.
+  curproc->threads++;
+
+  // Set the stack top for the new process (thread).
+  np->stackTop = (int) ((char *) stack + PGSIZE);
+
+  // Share the page table with the new process (thread).
+  acquire(&ptable.lock);
+  np->pgdir = curproc->pgdir;
+  release(&ptable.lock);
+
+  // Create a stack frame and copy parent's stack content into the new process's stack
+  int bytesOnStack = curproc->stackTop - curproc->tf->esp;
+  np->tf->esp = np->stackTop - bytesOnStack;
+  memmove((void *) np->tf->esp, (void *) curproc->tf->esp, bytesOnStack);
+
+  // Copy process state from proc.
+  np->sz = curproc->sz;
+  np->parent = curproc;
+  *np->tf = *curproc->tf;
+
+  // Set base pointer (%ebp) and stack pointer (%esp) for the new process (thread).
+  np->tf->ebp = np->stackTop - (curproc->stackTop - curproc->tf->ebp);
+  np->tf->esp = np->stackTop - bytesOnStack;
+
+  // Clear %eax so that fork returns 0 in the child.
+  np->tf->eax = 0;
+
+  for(i = 0; i < NOFILE; i++)
+    if(curproc->ofile[i])
+      np->ofile[i] = filedup(curproc->ofile[i]);
+  np->cwd = idup(curproc->cwd);
+
+  safestrcpy(np->name, curproc->name, sizeof(curproc->name));
+
+  tid = np->pid;
+
+  acquire(&ptable.lock);
+
+  np->state = RUNNABLE;
+
+  release(&ptable.lock);
+
+  return tid;
 }
 
 
