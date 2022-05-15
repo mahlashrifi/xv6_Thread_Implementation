@@ -91,6 +91,7 @@ allocproc(void)
 found:
   p->state = EMBRYO;
   p->pid = nextpid++;
+  p->stackTop = -1; // it means it's not initialized yet
   p->threads = -1;
 
   release(&ptable.lock);
@@ -349,19 +350,11 @@ wait(void)
         pid = p->pid;
         kfree(p->kstack);
         p->kstack = 0;
-        if(check_pgdir_share(p)) //there is still threads running
-          freevm(p->pgdir);
         p->pid = 0;
         p->parent = 0;
         p->name[0] = 0;
         p->killed = 0;
         p->state = UNUSED;
-
-        //reset stackTop and pgdir
-        p->stackTop = -1;
-        p->pgdir = 0;
-        p->threads = -1;
-
         release(&ptable.lock);
         return pid;
       }
@@ -674,7 +667,7 @@ int
 thread_join(int id)
 {
   struct proc *p;
-  int havekids, pid;
+  int havekids, stat;
   struct proc *curproc = myproc();
   
   acquire(&ptable.lock);
@@ -687,9 +680,9 @@ thread_join(int id)
       if(p->threads != -1) //only wait for child threads
         continue;
       havekids = 1;
-      if(p->state == ZOMBIE){
+      if(p->pid == id && p->state == ZOMBIE){
         // Found one.
-        pid = p->pid;
+        stat = (p->killed) ? -1 : 0;
         kfree(p->kstack);
         p->kstack = 0;
         if(check_pgdir_share(p)) //check if there are still some threads left with this pagedir
@@ -703,7 +696,7 @@ thread_join(int id)
         p->pgdir = 0;
         p->threads = -1;
         release(&ptable.lock);
-        return pid;
+        return stat;
       }
     }
 

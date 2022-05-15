@@ -3,16 +3,20 @@
 #include "user.h"
 
 int BASE, LIMIT;
+int count = 0;
 
 void run(int d) {
 	if (BASE == LIMIT) {
-		exit();
+		return;
     }
-
+    printf(1, "%d - CHKPNT #1\n", count);
 	BASE++;
 	int tid = thread_creator((void *) &run, 0);
+    printf(1, "%d - CHKPNT #2\n", count);
 	int stat = thread_join(tid);
+    printf(1, "%d - CHKPNT #3\n", count);
 	printf(1, "[ID] %d => [%s] %d\n", thread_id(), (stat == 0) ? "Success" : "Failed", stat);
+    printf(1, "%d - CHKPNT #4\n", count++);
 }
 
 int main(int argc, char const *argv[]) {
