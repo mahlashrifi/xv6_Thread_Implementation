@@ -255,6 +255,7 @@ fork(void)
   np->sz = curproc->sz;
   np->parent = curproc;
   *np->tf = *curproc->tf;
+  np->threads = 1; // we have called fork, so the result is a process, not a thread
 
   // Clear %eax so that fork returns 0 in the child.
   np->tf->eax = 0;
@@ -328,7 +329,7 @@ exit(void)
 int
 wait(void)
 {
-   struct proc *p;
+  struct proc *p;
   int havekids, pid;
   struct proc *curproc = myproc();
   
@@ -339,8 +340,9 @@ wait(void)
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
       if(p->parent != curproc)
         continue;
+      //it is a thread, not a process. So wait shouldn't work on it
       if(p->threads == -1)
-        continue; //it is a child thread! not a process!
+        continue;
       havekids = 1;
       if(p->state == ZOMBIE){
         // Found one.
