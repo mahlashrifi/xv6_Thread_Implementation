@@ -220,6 +220,16 @@ growproc(int n)
   return 0;
 }
 
+int
+check_pgdir_share(struct proc *process){
+  struct proc *p;
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    if(p != process && p->pgdir == process->pgdir)
+      return 0; //there is still a thread with the same pgdir
+  }
+  return 1; //it's okay to free pgdir
+}
+
 // Create a new process copying p as the parent.
 // Sets up stack to return as if from system call.
 // Caller must set state of returned proc to RUNNABLE.
