@@ -318,7 +318,7 @@ exit(void)
 int
 wait(void)
 {
-  struct proc *p;
+   struct proc *p;
   int havekids, pid;
   struct proc *curproc = myproc();
   
@@ -329,18 +329,27 @@ wait(void)
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
       if(p->parent != curproc)
         continue;
+      if(p->threads == -1)
+        continue; //it is a child thread! not a process!
       havekids = 1;
       if(p->state == ZOMBIE){
         // Found one.
         pid = p->pid;
         kfree(p->kstack);
         p->kstack = 0;
-        freevm(p->pgdir);
+        if(check_pgdir_share(p)) //there is still threads running
+          freevm(p->pgdir);
         p->pid = 0;
         p->parent = 0;
         p->name[0] = 0;
         p->killed = 0;
         p->state = UNUSED;
+
+        //reset stackTop and pgdir
+        p->stackTop = -1;
+        p->pgdir = 0;
+        p->threads = -1;
+
         release(&ptable.lock);
         return pid;
       }
@@ -351,7 +360,7 @@ wait(void)
       release(&ptable.lock);
       return -1;
     }
- 
+
     // Wait for children to exit.  (See wakeup1 call in proc_exit.)
     sleep(curproc, &ptable.lock);  //DOC: wait-sleep
   }
