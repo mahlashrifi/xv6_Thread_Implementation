@@ -643,7 +643,8 @@ thread_create(void *stack)
 int
 thread_id()
 {
-  return -1;
+  struct proc *curproc = myproc();
+  return curproc->pid;
 }
 
 // Make the parent process wait for the thread 
