@@ -19,7 +19,7 @@ int thread_creator(void (*fn) (void *), void *arg) {
     stack = (!mod) ? fptr : fptr + (PAGESIZE - mod);
 
     // create the new thread using thread_create system call
-    int tread_id = thread_create((void *) stack);
+    int thread_id = thread_create((void *) stack);
 
     if (thread_id < 0) // failed to create the new thread
         printf(1, "Thread creation failed.\n");
